@@ -1,5 +1,5 @@
 services:
-  posts:
+  images:
     image: ghcr.io/techtonic-plates-blog/images-service:nightly
     environment:
       - MINIO_URL=http://minio:9000
