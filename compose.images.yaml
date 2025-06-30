@@ -1,17 +1,14 @@
 services:
   posts:
-    image: ghcr.io/techtonic-plates-blog/posts-service:nightly
+    image: ghcr.io/techtonic-plates-blog/images-service:nightly
     environment:
-      - RUST_BACKTRACE=full
       - MINIO_URL=http://minio:9000
       - MINIO_ACCESS=${MINIO_ACCESS}
       - MINIO_SECRET=${MINIO_SECRET}
-      - DATABASE_URL=postgres://techtonic:Jkjz1yG9bKcWBeB1zFdgqg@postgres:5432/techtonic_plates
-      - KAFKA_CONNECT_URL=http://kafka-connect:8083/
     networks:
       - techtonic_plates_network
     ports:
-      - "5132:5000"
+      - "5133:5000"
 
 networks:
   techtonic_plates_network:
