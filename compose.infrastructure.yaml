@@ -20,7 +20,7 @@ services:
       retries: 5
 
   minio-configurator:
-    image: minio/mc:RELEASE.2024-10-08T09-37-26Z
+    image: quay.io/minio/mc:RELEASE.2025-04-16T18-13-26Z
     container_name: minio_configurator
     depends_on:
       minio:
@@ -28,7 +28,11 @@ services:
     environment:
       MC_HOST_minio: http://admin:adminpassword@minio:9000
     entrypoint: /bin/sh
-    command: -c "/tmp/configure-minio.sh"
+    command: >
+      -c "
+        chmod +x /tmp/configure-minio.sh
+        /tmp/configure-minio.sh
+      "
     volumes:
       - ./setups/minio-configurator/configure-minio.sh:/tmp/configure-minio.sh
   zookeeper:
@@ -105,7 +109,7 @@ services:
       "
   postgres:
     # Official Postgres image from DockerHub (we use the last version)
-    image: 'docker.io/postgres:latest'
+    image: docker.io/postgres:latest
 
     # By default, a Postgres database is running on the 5432 port.
     # If we want to access the database from our computer (outside the container),
@@ -123,6 +127,9 @@ services:
       POSTGRES_DB: techtonic_plates
     volumes:
       - pg_data:/var/lib/postgresql/data/
+      - ./setups/postgres/init-global.sql:/docker-entrypoint-initdb.d/10-global.sql
+      - ./setups/postgres/init-per-db.sql:/docker-entrypoint-initdb.d/20-per-db-template.sql
+
     networks:
       - techtonic_plates_network
   pgadmin:
