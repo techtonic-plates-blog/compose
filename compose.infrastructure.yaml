@@ -9,6 +9,28 @@ services:
       - bucket_storage:/data
     networks:
       - techtonic_plates_network
+    environment:
+      MINIO_ROOT_USER: admin
+      MINIO_ROOT_PASSWORD: adminpassword
+
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  minio-configurator:
+    image: minio/mc:RELEASE.2024-10-08T09-37-26Z
+    container_name: minio_configurator
+    depends_on:
+      minio:
+        condition: service_healthy
+    environment:
+      MC_HOST_minio: http://admin:adminpassword@minio:9000
+    entrypoint: /bin/sh
+    command: -c "/tmp/configure-minio.sh"
+    volumes:
+      - ./setups/minio-configurator/configure-minio.sh:/tmp/configure-minio.sh
   zookeeper:
     image: docker.io/confluentinc/cp-zookeeper:7.3.0
     hostname: zookeeper
