@@ -27,6 +27,7 @@ services:
         condition: service_healthy
     environment:
       MC_HOST_minio: http://admin:adminpassword@minio:9000
+      #MINIO_CONFIGURE_FLAG: "true"
     entrypoint: /bin/sh
     command: >
       -c "

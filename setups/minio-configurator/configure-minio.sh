@@ -1,5 +1,11 @@
 #!/bin/sh
 
+# Check for required environment variable
+if [ -z "$MINIO_CONFIGURE_FLAG" ]; then
+  echo "ERROR: MINIO_CONFIGURE_FLAG environment variable is not set. Exiting."
+  exit 1
+fi
+
 # Wait for MinIO to be ready
 until mc ready minio; do 
   echo 'Waiting for MinIO...'
@@ -14,7 +20,7 @@ mc admin policy attach minio readwrite --user internal_apps
 
 # Create buckets
 mc mb minio/typst-files
-mc mb minio/image-files
+mc mb minio/assets-files
 
 
 # Generate API access keys
