@@ -1,3 +1,5 @@
+
+
 services:
   minio:
     image: quay.io/minio/minio:RELEASE.2025-04-22T22-12-26Z
@@ -10,8 +12,8 @@ services:
     networks:
       - techtonic_plates_network
     environment:
-      MINIO_ROOT_USER: admin
-      MINIO_ROOT_PASSWORD: adminpassword
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-admin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-adminpassword}
 
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
@@ -26,7 +28,7 @@ services:
       minio:
         condition: service_healthy
     environment:
-      MC_HOST_minio: http://admin:adminpassword@minio:9000
+      MC_HOST_minio: http://${MINIO_ROOT_USER:-admin}:${MINIO_ROOT_PASSWORD:-adminpassword}@minio:9000
       #MINIO_CONFIGURE_FLAG: "true"
     entrypoint: /bin/sh
     command: >
@@ -123,12 +125,14 @@ services:
       - 5432:5432
     command: ["postgres", "-c", "wal_level=logical"]
     environment:
-      POSTGRES_USER: techtonic # The PostgreSQL user (useful to connect to the database)
-      POSTGRES_PASSWORD: Jkjz1yG9bKcWBeB1zFdgqg # The PostgreSQL password (useful to connect to the database)
-      POSTGRES_DB: techtonic_plates
+      POSTGRES_USER: ${POSTGRES_USER:-techtonic} # The PostgreSQL user (useful to connect to the database)
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-Jkjz1yG9bKcWBeB1zFdgqg} # The PostgreSQL password (useful to connect to the database)
+     # POSTGRES_DB: techtonic_plates
+      DEBEZIUM_PASSWORD: ${DEBEZIUM_PASSWORD:-debezium_pass}
     volumes:
       - pg_data:/var/lib/postgresql/data/
-      - ./setups/postgres/init-global.sql:/docker-entrypoint-initdb.d/10-global.sql
+      - ./setups/postgres/init-debezium.sh:/docker-entrypoint-initdb.d/05-init-debezium.sh
+      - ./setups/postgres/init-global.sql.template:/docker-entrypoint-initdb.d/10-global.sql.template
       - ./setups/postgres/init-per-db.sql:/docker-entrypoint-initdb.d/20-per-db-template.sql
 
     networks:
@@ -138,8 +142,8 @@ services:
     ports:
       - 15433:80
     environment:
-      PGADMIN_DEFAULT_EMAIL: pgadmin@email.com
-      PGADMIN_DEFAULT_PASSWORD: admin
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL:-admin}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD:-admin}
     depends_on:
       - postgres
     networks:
