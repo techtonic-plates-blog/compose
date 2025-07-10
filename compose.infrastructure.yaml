@@ -21,23 +21,6 @@ services:
       timeout: 5s
       retries: 5
 
-  minio-configurator:
-    image: quay.io/minio/mc:RELEASE.2025-04-16T18-13-26Z
-    container_name: minio_configurator
-    depends_on:
-      minio:
-        condition: service_healthy
-    environment:
-      MC_HOST_minio: http://${MINIO_ROOT_USER:-admin}:${MINIO_ROOT_PASSWORD:-adminpassword}@minio:9000
-      #MINIO_CONFIGURE_FLAG: "true"
-    entrypoint: /bin/sh
-    command: >
-      -c "
-        chmod +x /tmp/configure-minio.sh
-        /tmp/configure-minio.sh
-      "
-    volumes:
-      - ./setups/minio-configurator/configure-minio.sh:/tmp/configure-minio.sh
   zookeeper:
     image: docker.io/confluentinc/cp-zookeeper:7.3.0
     hostname: zookeeper
@@ -105,6 +88,7 @@ services:
         echo 'Installing connectors...'
         confluent-hub install --no-prompt debezium/debezium-connector-postgresql:2.0.1
         confluent-hub install --no-prompt mongodb/kafka-connect-mongodb:1.7.0
+        confluent-hub install --no-prompt confluentinc/kafka-connect-jdbc:10.8.4
         echo 'Waiting for Kafka Connect to start...'
         #while ! nc -z localhost 8083; do sleep 5; done
         echo 'Starting Kafka Connect...'
@@ -131,9 +115,6 @@ services:
       DEBEZIUM_PASSWORD: ${DEBEZIUM_PASSWORD:-debezium_pass}
     volumes:
       - pg_data:/var/lib/postgresql/data/
-      - ./setups/postgres/init-debezium.sh:/docker-entrypoint-initdb.d/05-init-debezium.sh
-      - ./setups/postgres/init-global.sql.template:/docker-entrypoint-initdb.d/10-global.sql.template
-      - ./setups/postgres/init-per-db.sql:/docker-entrypoint-initdb.d/20-per-db-template.sql
 
     networks:
       - techtonic_plates_network
@@ -142,7 +123,7 @@ services:
     ports:
       - 15433:80
     environment:
-      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL:-admin}
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL:-admin@admin.com}
       PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD:-admin}
     depends_on:
       - postgres
