@@ -1,6 +1,6 @@
 services:
-  images:
-    image: ghcr.io/techtonic-plates-blog/images-service:nightly
+  assets:
+    image: ghcr.io/techtonic-plates-blog/assets-service:nightly
     environment:
       - MINIO_URL=http://minio:9000
       - MINIO_ACCESS=${MINIO_ACCESS}
@@ -8,7 +8,7 @@ services:
     networks:
       - techtonic_plates_network
     ports:
-      - "5133:5000"
+      - "5134:5000"
 
 networks:
   techtonic_plates_network:
