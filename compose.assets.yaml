@@ -5,6 +5,8 @@ services:
       - MINIO_URL=http://minio:9000
       - MINIO_ACCESS=${MINIO_ACCESS}
       - MINIO_SECRET=${MINIO_SECRET}
+    env_file:
+      - .assets.env
     networks:
       - techtonic_plates_network
     ports:

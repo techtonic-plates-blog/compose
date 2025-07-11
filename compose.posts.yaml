@@ -5,12 +5,9 @@ services:
       - .posts.env
     environment:
       - RUST_BACKTRACE=full
-      - MINIO_URL=http://minio:9000
-      - MINIO_ACCESS=${MINIO_ACCESS}
-      - MINIO_SECRET=${MINIO_SECRET}
       - DATABASE_URL=${DATABASE_URL:-postgres://techtonic:Jkjz1yG9bKcWBeB1zFdgqg@postgres:5432/posts_service}
       - KAFKA_CONNECT_URL=http://kafka-connect:8083/
-      - JWT_PUBLIC_KEY=${JWT_PUBLIC_KEY}
+      #- JWT_PUBLIC_KEY=${JWT_PUBLIC_KEY}
     networks:
       - techtonic_plates_network
     ports:

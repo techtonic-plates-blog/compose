@@ -4,7 +4,7 @@ services:
     env_file:
       - .auth.env
     environment:
-      - DATABASE_URL=${DATABASE_URL:-postgres://techtonic:Jkjz1yG9bKcWBeB1zFdgqg@postgres:5432/posts_service}
+      - DATABASE_URL=${DATABASE_URL:-postgres://techtonic:Jkjz1yG9bKcWBeB1zFdgqg@postgres:5432/auth_service}
     networks:
       - techtonic_plates_network
     ports:
