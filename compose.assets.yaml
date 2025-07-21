@@ -1,10 +1,8 @@
 services:
   assets:
     image: ghcr.io/techtonic-plates-blog/assets-service:nightly
-    environment:
-      - MINIO_URL=http://minio:9000
-      - MINIO_ACCESS=${MINIO_ACCESS}
-      - MINIO_SECRET=${MINIO_SECRET}
+    pull_policy: always
+
     env_file:
       - .assets.env
     networks:
