@@ -131,11 +131,36 @@ services:
       - techtonic_plates_network
     volumes:
       - pgadmin_data:/var/lib/pgadmin/
+  
+  mongo:
+    image: docker.io/mongo:latest
+    ports:
+      - 27017:27017
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME:-root}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD:-6ZRtaurUSbqFLoJ6coERVS}
+    networks:
+      - techtonic_plates_network
+    volumes:
+      - mongo_data:/data/db
+  mongo-express:
+    image: docker.io/mongo-express:latest
+    ports:
+      - 15432:8081
+    environment:
+      ME_CONFIG_MONGODB_ADMINUSERNAME: ${MONGO_INITDB_ROOT_USERNAME:-root}
+      ME_CONFIG_MONGODB_ADMINPASSWORD: ${MONGO_INITDB_ROOT_PASSWORD:-6ZRtaurUSbqFLoJ6coERVS}
+      ME_CONFIG_MONGODB_SERVER: mongo
+    networks:
+      - techtonic_plates_network
+    depends_on:
+      - mongo
 
 volumes:
   bucket_storage:
   connectors:
   pg_data:
+  mongo_data:
   pgadmin_data:
 
 networks:
