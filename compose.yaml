@@ -1,6 +1,60 @@
-
+version: '3.8'
 
 services:
+  # Assets Service
+  assets:
+    image: ghcr.io/techtonic-plates-blog/assets-service:nightly
+    pull_policy: always
+    env_file:
+      - .env
+    networks:
+      - techtonic_plates_network
+    ports:
+      - "5134:5000"
+
+  # Auth Service
+  auth:
+    image: ghcr.io/techtonic-plates-blog/auth-service:nightly
+    pull_policy: always
+    env_file:
+      - .env
+    environment:
+      - DATABASE_URL=${DATABASE_URL:-postgres://techtonic:Jkjz1yG9bKcWBeB1zFdgqg@postgres:5432/auth_service}
+    networks:
+      - techtonic_plates_network
+    ports:
+      - "5133:5000"
+
+  # Dashboard Service
+  dashboard:
+    image: ghcr.io/techtonic-plates-blog/dashboard:nightly
+    pull_policy: always
+    env_file:
+      - .env
+    ports:
+      - "3050:3000"
+    networks:
+      - techtonic_plates_network
+
+  # Posts Service
+  posts:
+    image: ghcr.io/techtonic-plates-blog/posts-service:nightly
+    pull_policy: always
+    env_file:
+      - .env
+    environment:
+      - RUST_BACKTRACE=full
+      - DATABASE_URL=${DATABASE_URL:-postgres://techtonic:Jkjz1yG9bKcWBeB1zFdgqg@postgres:5432/posts_service}
+      - KAFKA_CONNECT_URL=http://kafka-connect:8083/
+      #- JWT_PUBLIC_KEY=${JWT_PUBLIC_KEY}
+    networks:
+      - techtonic_plates_network
+    ports:  
+      - "5132:5000"
+
+  # Infrastructure Services
+  
+  # MinIO Object Storage
   minio:
     image: quay.io/minio/minio:RELEASE.2025-04-22T22-12-26Z
     command: server /data --console-address ":9001"
@@ -14,13 +68,13 @@ services:
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:-admin}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-adminpassword}
-
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
       interval: 10s
       timeout: 5s
       retries: 5
 
+  # Zookeeper for Kafka
   zookeeper:
     image: docker.io/confluentinc/cp-zookeeper:7.3.0
     hostname: zookeeper
@@ -45,10 +99,8 @@ services:
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
-
     extra_hosts:
       - "host.containers.internal:host-gateway"
-  
     networks:
       - techtonic_plates_network
     # ports section is ignored in host mode
@@ -78,7 +130,6 @@ services:
       CONNECT_LOG4J_LOGGERS: org.apache.zookeeper=ERROR,org.I0Itec.zkclient=ERROR,org.reflections=ERROR
     volumes:
       - connectors:/etc/kafka-connect/connectors
-  
     extra_hosts:
       - "host.containers.internal:host-gateway"
     networks:
@@ -94,10 +145,11 @@ services:
         echo 'Starting Kafka Connect...'
         /etc/confluent/docker/run
       "
+
+  # PostgreSQL Database
   postgres:
     # Official Postgres image from DockerHub (we use the last version)
     image: docker.io/postgres:latest
-
     # By default, a Postgres database is running on the 5432 port.
     # If we want to access the database from our computer (outside the container),
     # we must share the port with our computer's port.
@@ -115,10 +167,8 @@ services:
       DEBEZIUM_PASSWORD: ${DEBEZIUM_PASSWORD:-debezium_pass}
     volumes:
       - pg_data:/var/lib/postgresql/data/
-
     networks:
       - techtonic_plates_network
-  
 
 volumes:
   bucket_storage:
