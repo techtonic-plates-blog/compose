@@ -3,6 +3,7 @@ version: '3.8'
 services:
   dashboard:
     image: ghcr.io/techtonic-plates-blog/dashboard:nightly
+    pull_policy: always
     env_file:
       - .dashboard.env
     ports:
