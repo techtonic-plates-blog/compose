@@ -11,8 +11,33 @@ services:
       - techtonic_plates_network
     ports:
       - "5134:5000"
+    depends_on:
+      minio:
+        condition: service_healthy
 
   # Auth Service
+  auth-migration:
+    image: ghcr.io/techtonic-plates-blog/auth-service-migration:nightly
+    pull_policy: always
+    env_file:
+      - .env
+    environment:
+      - DATABASE_URL=${DATABASE_URL:-postgres://techtonic:Jkjz1yG9bKcWBeB1zFdgqg@postgres:5432/auth_service}
+    networks:
+      - techtonic_plates_network
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: >
+      sh -c "
+        /app/migration up && 
+        touch /tmp/migration_done && 
+        sleep infinity"
+    healthcheck:
+      test: ["CMD-SHELL", "test -f /tmp/migration_done"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
   auth:
     image: ghcr.io/techtonic-plates-blog/auth-service:nightly
     pull_policy: always
@@ -24,6 +49,9 @@ services:
       - techtonic_plates_network
     ports:
       - "5133:5000"
+    depends_on:
+      auth-migration:
+        condition: service_healthy
 
   # Dashboard Service
   dashboard:
@@ -37,6 +65,30 @@ services:
       - techtonic_plates_network
 
   # Posts Service
+  posts-migration:
+    image: ghcr.io/techtonic-plates-blog/posts-service-migration:nightly
+    pull_policy: always
+    env_file:
+      - .env
+    environment:
+      - RUST_BACKTRACE=full
+      - DATABASE_URL=${DATABASE_URL:-postgres://techtonic:Jkjz1yG9bKcWBeB1zFdgqg@postgres:5432/posts_service}
+      - KAFKA_CONNECT_URL=http://kafka-connect:8083/
+    networks:
+      - techtonic_plates_network
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: >
+      sh -c "
+        /app/migration up && 
+        touch /tmp/migration_done && 
+        sleep infinity"
+    healthcheck:
+      test: ["CMD-SHELL", "test -f /tmp/migration_done"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
   posts:
     image: ghcr.io/techtonic-plates-blog/posts-service:nightly
     pull_policy: always
@@ -51,6 +103,9 @@ services:
       - techtonic_plates_network
     ports:  
       - "5132:5000"
+    depends_on:
+      posts-migration:
+        condition: service_healthy
 
   # Infrastructure Services
   
@@ -169,6 +224,11 @@ services:
       - pg_data:/var/lib/postgresql/data/
     networks:
       - techtonic_plates_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER:-techtonic}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
 volumes:
   bucket_storage:
