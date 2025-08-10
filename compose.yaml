@@ -71,6 +71,8 @@ services:
     pull_policy: always
     env_file:
       - .env
+    environment:
+      - TF_VAR_kafka_connect_url="http://kafka-connect:8083/"
     networks:
       - techtonic_plates_network
     depends_on:
@@ -79,7 +81,7 @@ services:
       posts-migration:
         condition: service_healthy
       kafka-connect:
-        condition: service_started
+        condition: service_healthy
     entrypoint: >
       sh -c "
         /entrypoint.sh &&
@@ -267,6 +269,12 @@ services:
       - "host.containers.internal:host-gateway"
     networks:
       - techtonic_plates_network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8083/connectors || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 60s
     command: >
       bash -c "
         echo 'Installing connectors...'
