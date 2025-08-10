@@ -15,6 +15,32 @@ services:
       minio:
         condition: service_healthy
 
+  # Database Initializer
+  database-init:
+    image: ghcr.io/techtonic-plates-blog/infra-config-database-init:nightly
+    pull_policy: always
+    env_file:
+      - .env
+    networks:
+      - techtonic_plates_network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+      minio-bucket-init:
+        condition: service_healthy
+    entrypoint: >
+      sh -c "
+        /entrypoint.sh &&
+        touch /tmp/init_done &&
+        sleep infinity"
+    healthcheck:
+      test: ["CMD-SHELL", "test -f /tmp/init_done"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
   # Auth Service
   auth-migration:
     image: ghcr.io/techtonic-plates-blog/auth-service-migration:nightly
@@ -26,7 +52,7 @@ services:
     networks:
       - techtonic_plates_network
     depends_on:
-      postgres:
+      database-init:
         condition: service_healthy
     command: >
       sh -c "
@@ -38,6 +64,33 @@ services:
       interval: 5s
       timeout: 3s
       retries: 10
+
+  # Kafka Connectors Initializer
+  connectors-init:
+    image: ghcr.io/techtonic-plates-blog/infra-config-connectors:nightly
+    pull_policy: always
+    env_file:
+      - .env
+    networks:
+      - techtonic_plates_network
+    depends_on:
+      auth-migration:
+        condition: service_healthy
+      posts-migration:
+        condition: service_healthy
+      kafka-connect:
+        condition: service_started
+    entrypoint: >
+      sh -c "
+        /entrypoint.sh &&
+        touch /tmp/connectors_done &&
+        sleep infinity"
+    healthcheck:
+      test: ["CMD-SHELL", "test -f /tmp/connectors_done"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
   auth:
     image: ghcr.io/techtonic-plates-blog/auth-service:nightly
     pull_policy: always
@@ -50,8 +103,10 @@ services:
     ports:
       - "5133:5000"
     depends_on:
-      auth-migration:
+      connectors-init:
         condition: service_healthy
+      kafka:
+        condition: service_started
 
   # Dashboard Service
   dashboard:
@@ -77,7 +132,7 @@ services:
     networks:
       - techtonic_plates_network
     depends_on:
-      postgres:
+      database-init:
         condition: service_healthy
     command: >
       sh -c "
@@ -104,8 +159,10 @@ services:
     ports:  
       - "5132:5000"
     depends_on:
-      posts-migration:
+      connectors-init:
         condition: service_healthy
+      kafka:
+        condition: service_started
 
   # Infrastructure Services
   
@@ -128,6 +185,27 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+
+  # MinIO Bucket Initializer
+  minio-bucket-init:
+    image: docker.io/minio/mc:latest
+    networks:
+      - techtonic_plates_network
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      sh -c "
+        mc alias set myminio http://minio:9000 admin adminpassword &&
+        mc mb myminio/tf-remote-state --ignore-existing &&
+        touch /tmp/bucket_init_done &&
+        sleep infinity"
+    healthcheck:
+      test: ["CMD-SHELL", "test -f /tmp/bucket_init_done"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
 
   # Zookeeper for Kafka
   zookeeper:
