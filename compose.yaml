@@ -173,7 +173,7 @@ services:
     image: ghcr.io/techtonic-plates-blog/single-endpoint/nginx-reverse-proxy:latest
     pull_policy: always
     ports:
-      - "8080:80"
+      - "8082:80"
     depends_on:
       - auth
       - collections
