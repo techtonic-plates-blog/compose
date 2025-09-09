@@ -41,14 +41,20 @@ services:
       timeout: 3s
       retries: 10
 
-  # Auth Service
-  auth-migration:
-    image: ghcr.io/techtonic-plates-blog/auth-service-migration:nightly
-    pull_policy: always
+  # Consolidated Migrations Service
+  migrations:
+    build:
+      context: .
+      dockerfile: Dockerfile.migrations
+    pull_policy: build
     env_file:
       - .env
     environment:
-      - DATABASE_URL=${DATABASE_URL:-postgres://techtonic:Jkjz1yG9bKcWBeB1zFdgqg@postgres:5432/auth_service}
+      - RUST_BACKTRACE=full
+      - AUTH_DATABASE_URL=${DATABASE_URL:-postgres://techtonic:Jkjz1yG9bKcWBeB1zFdgqg@postgres:5432/auth_service}
+      - POSTS_DATABASE_URL=${DATABASE_URL:-postgres://techtonic:Jkjz1yG9bKcWBeB1zFdgqg@postgres:5432/posts_service}
+      - COLLECTIONS_DATABASE_URL=${DATABASE_URL:-postgres://techtonic:Jkjz1yG9bKcWBeB1zFdgqg@postgres:5432/collections_service}
+      - KAFKA_CONNECT_URL=http://kafka-connect:8083/
     networks:
       - techtonic_plates_network
     depends_on:
@@ -56,11 +62,17 @@ services:
         condition: service_healthy
     command: >
       sh -c "
-        /app/migration up && 
-        touch /tmp/migration_done && 
+        echo 'Running auth migrations...' &&
+        DATABASE_URL=$$AUTH_DATABASE_URL /app/auth-migration up &&
+        echo 'Running posts migrations...' &&
+        DATABASE_URL=$$POSTS_DATABASE_URL /app/posts-migration up &&
+        echo 'Running collections migrations...' &&
+        DATABASE_URL=$$COLLECTIONS_DATABASE_URL /app/collections-migration up &&
+        echo 'All migrations completed successfully' &&
+        touch /tmp/migrations_done &&
         sleep infinity"
     healthcheck:
-      test: ["CMD-SHELL", "test -f /tmp/migration_done"]
+      test: ["CMD-SHELL", "test -f /tmp/migrations_done"]
       interval: 5s
       timeout: 3s
       retries: 10
@@ -76,9 +88,7 @@ services:
     networks:
       - techtonic_plates_network
     depends_on:
-      auth-migration:
-        condition: service_healthy
-      posts-migration:
+      migrations:
         condition: service_healthy
       kafka-connect:
         condition: service_healthy
@@ -121,51 +131,56 @@ services:
     networks:
       - techtonic_plates_network
 
-  # Posts Service
-  posts-migration:
-    image: ghcr.io/techtonic-plates-blog/posts-service-migration:nightly
+
+  collections:
+    image: ghcr.io/techtonic-plates-blog/collections-service:nightly
     pull_policy: always
     env_file:
       - .env
     environment:
       - RUST_BACKTRACE=full
-      - DATABASE_URL=${DATABASE_URL:-postgres://techtonic:Jkjz1yG9bKcWBeB1zFdgqg@postgres:5432/posts_service}
+      - DATABASE_URL=${DATABASE_URL:-postgres://techtonic:Jkjz1yG9bKcWBeB1zFdgqg@postgres:5432/collections_service}
       - KAFKA_CONNECT_URL=http://kafka-connect:8083/
-    networks:
-      - techtonic_plates_network
-    depends_on:
-      database-init:
-        condition: service_healthy
-    command: >
-      sh -c "
-        /app/migration up && 
-        touch /tmp/migration_done && 
-        sleep infinity"
-    healthcheck:
-      test: ["CMD-SHELL", "test -f /tmp/migration_done"]
-      interval: 5s
-      timeout: 3s
-      retries: 10
-  posts:
-    image: ghcr.io/techtonic-plates-blog/posts-service:nightly
-    pull_policy: always
-    env_file:
-      - .env
-    environment:
-      - RUST_BACKTRACE=full
-      - DATABASE_URL=${DATABASE_URL:-postgres://techtonic:Jkjz1yG9bKcWBeB1zFdgqg@postgres:5432/posts_service}
-      - KAFKA_CONNECT_URL=http://kafka-connect:8083/
-      #- JWT_PUBLIC_KEY=${JWT_PUBLIC_KEY}
+      - JWT_PUBLIC_KEY=${JWT_PUBLIC_KEY}
     networks:
       - techtonic_plates_network
     ports:  
-      - "5132:5000"
+      - "5135:5000"
     depends_on:
       connectors-init:
         condition: service_healthy
       kafka:
         condition: service_started
-
+  collections-query:
+    image: ghcr.io/techtonic-plates-blog/collections-query:main
+    pull_policy: always
+    env_file:
+      - .env
+    environment:
+      - RUST_BACKTRACE=full
+      - DATABASE_URL=${DATABASE_URL:-postgres://techtonic:Jkjz1yG9bKcWBeB1zFdgqg@postgres:5432/collections_service}
+      - JWT_PUBLIC_KEY=${JWT_PUBLIC_KEY}
+    networks:
+      - techtonic_plates_network
+    ports:  
+      - "5136:5000"
+    depends_on:
+      connectors-init:
+        condition: service_healthy
+      kafka:
+        condition: service_started
+  single-endpoint:
+    image: ghcr.io/techtonic-plates-blog/single-endpoint/nginx-reverse-proxy:latest
+    pull_policy: always
+    ports:
+      - "8080:80"
+    depends_on:
+      - auth
+      - collections
+      - collections-query
+      - assets
+    networks:
+      - techtonic_plates_network
   # Infrastructure Services
   
   # MinIO Object Storage

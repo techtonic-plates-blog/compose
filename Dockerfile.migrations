@@ -1,0 +1,37 @@
+# Multi-stage build to create a consolidated migrations image
+FROM alpine:latest as downloader
+
+# Install curl for downloading migration binaries
+RUN apk add --no-cache curl
+
+# Create app directory
+WORKDIR /tmp
+
+# Download migration binaries from GitHub Container Registry
+# We'll extract the binaries from the existing migration images
+FROM ghcr.io/techtonic-plates-blog/auth-service-migration:nightly as auth-migration
+FROM ghcr.io/techtonic-plates-blog/posts-service-migration:nightly as posts-migration
+FROM ghcr.io/techtonic-plates-blog/collections-service-migration:nightly as collections-migration
+
+# Final stage - create the consolidated image
+FROM alpine:latest
+
+# Install necessary runtime dependencies
+RUN apk add --no-cache \
+    ca-certificates \
+    postgresql-client \
+    bash
+
+# Create app directory
+WORKDIR /app
+
+# Copy migration binaries from each migration image
+COPY --from=auth-migration /app/migration /app/auth-migration
+COPY --from=posts-migration /app/migration /app/posts-migration
+COPY --from=collections-migration /app/migration /app/collections-migration
+
+# Make binaries executable
+RUN chmod +x /app/auth-migration /app/posts-migration /app/collections-migration
+
+# Set default command
+CMD ["sh"]
